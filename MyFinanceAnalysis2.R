@@ -1,52 +1,69 @@
-data.prep<-function(Finance){
-  PF<-Finance[,c(1:4)]
-  PF$Date<-ymd(PF$Date)
-  classes<-c("Investments", "Mandatories", "Flexible")
-  PF$Category<-as.factor(PF$Category)
-  levels(PF$Category)<-classes
-  full.entries<-complete.cases(PF)
-  PF<-PF[full.entries,]
-  return(PF)  
+
+CleanData<-function(dataset){
+d<-dataset
+d<-d[,c(1:4)]
+d$Date<-as.Date(d$Date)
+d$Category<-as.factor(d$Category)
+cat.labels<-c("Investment", "Mandatories", "Flexible")
+levels(d$Category)<-cat.labels
+#View(d)
+full<-complete.cases(d)
+d<-d[full,]
+return(d)
 }
 
-data.analysis<-function(d){
-  d2<-d
-  d2<-d2 %>% select(Category, Amount) %>% group_by(Category) %>% tally()
+Analyze.and.Visualize<-function(dataset){
+  d<-dataset
   
-  graph1<-ggplot(d2, mapping<-aes(x=Category,y=n, fill=Category))+
-   geom_bar(stat="identity")+
-   ggtitle("Transactions by Amount")+
-   labs(x= "Category of purchase", y= "Amount Spent in JMD")
-  print(graph1)
-  
-  d2<-d %>% group_by(Category) %>% summarise(Amount = sum(Amount))
-  graph2<-ggplot(d2,mapping = aes(x=Category, y=Amount, fill=Category))+
+  # number of transactions
+  d2<-d %>% group_by(Category) %>% summarise(Amount) %>% tally()
+  graph1<-ggplot(d2, mapping=aes(x = Category, y = n,fill = Category,text= paste("# Transactions", n)))+
     geom_bar(stat="identity")+
-    ggtitle("Spending by Category")+
-    labs(x="Category of purchase", y="Amount spent in JMD")
-  print(graph2)
- 
-  d2<- d %>% group_by(month=floor_date(Date, "month"), Category) %>% summarise(t=sum(Amount))
-  graph3<-ggplot(d2, mapping = aes(x=month,y=t, colour=Category))+
-    geom_line(size=1.2, alpha=0.8)+
-    geom_point(alpha= 0.8)+
-    ggtitle("Spending by month")+
-    labs(x="Date", y="Amount Spent in JMD")
-  print(graph3)
-  graph3.animation <- graph3 + transition_reveal(month)
-  print(graph3.animation + scale_x_date(date_labels= "%m-%Y"))
+    ggtitle("Number of Transactions of Each Category")+
+    labs(x="Category", y="Number of Transactions")+
+    theme(plot.title = element_text(hjust = 0.5))
+  graph1.interact<-ggplotly(graph1, tooltip = c("x", "text"))
+  print(graph1.interact)
+  
+  #Volume of transactions
+  d2<-d %>% group_by(Category) %>% summarise(Amount = sum(Amount))
+  graph2<-ggplot(d2, mapping=aes(x=Category, y=Amount, fill=Category))+
+    geom_bar(stat="identity")+
+    ggtitle("Total Spending by Category")+
+    labs(y="Spending in JMD", x="Category")+
+    theme(plot.title = element_text(hjust= 0.5))
+  graph2.interactive<-ggplotly(graph2, tooltip = c("x", "y"))
+  print(graph2.interactive)
+  
+  #Spending month by month
+  d2<-d %>% group_by(month=(floor_date(Date, "month")), Category) %>% summarise(Amount = sum(Amount))
+  glimpse(d2)
+  #print("this works 1")
+  
+  graph3<-ggplot(d2, mapping = aes(x = month, y = Amount, fill = Category))+
+    geom_bar(stat = "identity")+
+    labs(title = "Spending Each Month", y = "spending in JMD", x = "month")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(angle = 35))+
+    geom_hline(yintercept = 28000, linetype = "dashed")
+  graph3.interactive<-ggplotly(graph3)
+  print(graph3.interactive)
 }
 
 
+
+
+
+#Load Packages
 library(tidyverse)
+library(ggpubr)
 library(lubridate)
-library(gganimate)
 library(gifski)
+library(gganimate)
 library(readxl)
-Finances <- read_excel("Investing and Finance/Personal Finance/Personal Finances.xlsx")
-dataset<-data.prep(Finances)
-data.analysis(dataset)
+library(plotly)
 
-
-
-
+#Import Data
+SpendingData <- read_excel("Personal Finances.xlsx")
+Dataset<-CleanData(SpendingData)
+Analyze.and.Visualize(Dataset)
